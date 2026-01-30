@@ -8,31 +8,19 @@ fun main() {
     println("Tutoring Analytics Report Generator")
     println()
     //TODO: add report info
-
-    try{
-        DatabaseConfig.connect()
-        transaction {
-            val count = exec("SELECT COUNT(*) FROM \"TutoringRequests\"") { rs ->
-                if(rs.next()) rs.getLong(1) else 0
-            }
-            println("Connection success")
-            println("Total sessions found: $count")
-
-            exec("SELECT * FROM \"TutoringRequests\" LIMIT 1") { rs ->
-                if(rs.next()){
-                    println("Sample Data")
-                    val metadata = rs.metaData
-                    for (i in 1..metadata.columnCount){
-                        println("${metadata.getColumnName(i)}: ${rs.getString(i)}")
-                    }
-                }
-
-            }
-        }
-        println("Success!")
-    } catch (e: Exception){
-        println("Error!!")
-        println(e.message)
-        e.printStackTrace()
+    
+    DatabaseConfig.connect()
+    
+    val repo = ReportRepository()
+    //Testing a few queries
+    println("Sessions by Department:")
+    repo.getSessionCountByDepartment().forEach { (dept, count) ->
+        println("  $dept: $count")
     }
+    
+    println("\nTop 10 Most Requested Subjects:")
+    repo.getMostRequestedSubjects(10).forEach { (subject, count) ->
+        println("  $subject: $count")
+    }
+
 }
