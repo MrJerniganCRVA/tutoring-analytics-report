@@ -5,6 +5,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.coderva.reports.models.*
 import java.time.LocalDate
 
+
 class ReportRepository {
     fun getSessionCountByDepartment(): Map<String, Long> = transaction {
         (Teachers innerJoin TutoringRequests)
@@ -20,22 +21,23 @@ class ReportRepository {
         (Teachers innerJoin TutoringRequests)
             .slice(Teachers.subject, TutoringRequests.date, TutoringRequests.id.count())
             .select{TutoringRequests.date.between(startDate, endDate)}
-            .groupBy(Teacher.subject, TutoringRequests.date)
+            .groupBy(Teachers.subject, TutoringRequests.date)
             .orderBy(TutoringRequests.date to SortOrder.ASC)
-            .map {
+            .map { row -> 
                 DepartmentTrend(
-                    department = it[Teacher.subject],
-                    date = it[TutoringRequests.date]
-                    sessionsCount = it[TutoringRequests.id.count()]
+                    department = row[Teachers.subject],
+                    date = row[TutoringRequests.date],
+                    sessionCount = row[TutoringRequests.id.count()]
                 )
             }
-             fun getSessionCountByTeacher(): Map<String, Long> = transaction {
+    }
+    fun getSessionCountByTeacher(): Map<String, Long> = transaction {
         (Teachers innerJoin TutoringRequests)
             .slice(Teachers.firstName, Teachers.lastName, TutoringRequests.id.count())
             .selectAll()
             .groupBy(Teachers.id)
-            .associate { 
-                "${it[Teachers.firstName]} ${it[Teachers.lastName]}" to it[TutoringRequests.id.count()] 
+            .associate { row ->
+                "${row[Teachers.firstName]} ${row[Teachers.lastName]}" to row[TutoringRequests.id.count()] 
             }
     }
     
@@ -46,11 +48,11 @@ class ReportRepository {
             .groupBy(Students.id)
             .orderBy(TutoringRequests.id.count() to SortOrder.DESC)
             .limit(limit)
-            .map { 
+            .map {  row ->
                 StudentSessionCount(
-                    studentId = it[Students.id],
-                    studentName = "${it[Students.firstName]} ${it[Students.lastName]}",
-                    sessionCount = it[TutoringRequests.id.count()]
+                    studentId = row[Students.id],
+                    studentName = "${row[Students.firstName]} ${row[Students.lastName]}",
+                    sessionCount = row[TutoringRequests.id.count()]
                 )
             }
     }
@@ -71,11 +73,11 @@ class ReportRepository {
             .selectAll()
             .groupBy(Students.id)
             .orderBy(TutoringRequests.id.count() to SortOrder.DESC)
-            .map { 
+            .map { row ->
                 StudentSessionCount(
-                    studentId = it[Students.id],
-                    studentName = "${it[Students.firstName]} ${it[Students.lastName]}",
-                    sessionCount = it[TutoringRequests.id.count()]
+                    studentId = row[Students.id],
+                    studentName = "${row[Students.firstName]} ${row[Students.lastName]}",
+                    sessionCount = row[TutoringRequests.id.count()]
                 )
             }
     }
@@ -85,11 +87,11 @@ class ReportRepository {
             .leftJoin(TutoringRequests)
             .slice(Students.id, Students.firstName, Students.lastName)
             .select { TutoringRequests.id.isNull() }
-            .map { 
+            .map { row ->
                 Student(
-                    id = it[Students.id],
-                    firstName = it[Students.firstName],
-                    lastName = it[Students.lastName]
+                    id = row[Students.id],
+                    firstName = row[Students.firstName],
+                    lastName = row[Students.lastName]
                 )
             }
     }
@@ -100,25 +102,11 @@ class ReportRepository {
             .slice(TutoringRequests.date, TutoringRequests.id.count())
             .select { TutoringRequests.date.between(startDate, endDate) }
             .groupBy(TutoringRequests.date)
-            .associate { 
-                it[TutoringRequests.date] to it[TutoringRequests.id.count()] 
+            .associate { row ->
+                row[TutoringRequests.date] to row[TutoringRequests.id.count()] 
             }
     }
     
-    fun getMostRequestedSubjects(limit: Int = 10): List<SubjectCount> = transaction {
-        (Teachers innerJoin TutoringRequests)
-            .slice(Teachers.subject, TutoringRequests.id.count())
-            .selectAll()
-            .groupBy(Teachers.subject)
-            .orderBy(TutoringRequests.id.count() to SortOrder.DESC)
-            .limit(limit)
-            .map { 
-                SubjectCount(
-                    subject = it[Teachers.subject],
-                    count = it[TutoringRequests.id.count()]
-                )
-            }
-    }
     
     fun getSessionsByGradeLevel(currentSchoolYear: Int): Map<String, Long> = transaction {
         (Students innerJoin TutoringRequests)
@@ -128,28 +116,58 @@ class ReportRepository {
             .map { row ->
                 val studentId = row[Students.id]
                 val gradeLevel = Student(studentId, "", "").getGradeLevel(currentSchoolYear)
-                gradeLevel to row[TutoringRequests.id.count()]
+                Pair(gradeLevel, row[TutoringRequests.id.count()])
             }
-            .groupBy({ it.first }, { it.second })
-            .mapValues { it.value.sum() }
-    }
+            .groupBy({ pair: Pair<String, Long> -> pair.first }, { pair: Pair<String, Long> -> pair.second })
+            .mapValues { entry: Map.Entry<String, List<Long>> -> entry.value.sum() }
     }
 
+    fun getSessionsByDayOfWeek(): Map<String, Long> = transaction{
+        TutoringRequests
+            .slice(TutoringRequests.date, TutoringRequests.id.count())
+            .selectAll()
+            .groupBy(TutoringRequests.date)
+            .map {row ->
+                val date = row[TutoringRequests.date]
+                val dayOfWeek = date.dayOfWeek.toString()
+                dayOfWeek to row[TutoringRequests.id.count()]
+            }
+            .groupBy({it.first}, {it.second})
+            .mapValues{it.value.sum()}
+    }
+    fun getSessionsByLunchPeriod(): Map<String, Long> = transaction {
+        val sessions = TutoringRequests.selectAll().toList()
+
+        mapOf(
+            "Lunch A" to sessions.count{it[TutoringRequests.lunchA]},
+            "Lunch B" to sessions.count{it[TutoringRequests.lunchB]},
+            "Lunch C" to sessions.count{it[TutoringRequests.lunchC]},
+            "Lunch D" to sessions.count{it[TutoringRequests.lunchD]}
+        ).mapValues{it.value.toLong()}
+    }
+    fun getTotalSessionCount(): Long = transaction{
+        TutoringRequests.selectAll().count()
+    }
+    fun getSessionsByStatus(): Map<String, Long> = transaction{
+        TutoringRequests
+            .slice(TutoringRequests.status, TutoringRequests.id.count())
+            .selectAll()
+            .groupBy(TutoringRequests.status)
+            .associate { row ->
+                row[TutoringRequests.status] to row[TutoringRequests.id.count()]
+            }
+    }
+    fun getDateRange(): Pair<java.time.LocalDate?, java.time.LocalDate?> = transaction {
+        val minDate = TutoringRequests
+            .slice(TutoringRequests.date.min())
+            .selectAll()
+            .firstOrNull()?.get(TutoringRequests.date.min())
+
+        val maxDate = TutoringRequests
+            .slice(TutoringRequests.date.max())
+            .selectAll()
+            .firstOrNull()?.get(TutoringRequests.date.max())
+
+        minDate to maxDate
+    }
 }
-
-data class DepartmentTrend(
-    val department: String,
-    val date: LocalDate
-    val sessionCount: Long
-)
-
-data class StudentSessionCount(
-    val studentId: Int,
-    val studentName: String,
-    val sessionsCount: Long
-)
-
-data class SubjectCount(
-    val subject: String,
-    val count: Long
-)

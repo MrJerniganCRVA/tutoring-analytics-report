@@ -5,7 +5,7 @@ import org.jetbrains.exposed.sql.javatime.date
 import org.jetbrains.exposed.sql.javatime.datetime
 
 
-object Teachers : Table("Teachers"){
+object Teachers : Table("\"Teachers\""){
     val id = integer("id")
     val firstName = varchar("first_name", 100)
     val lastName = varchar("last_name", 100)
@@ -14,7 +14,7 @@ object Teachers : Table("Teachers"){
     
     override val primaryKey = PrimaryKey(id)
 } 
-object Students: Table("Students"){
+object Students: Table("\"Students\""){
     val id = integer("id")
     val firstName = varchar("first_name",100)
     val lastName = varchar("last_name", 100)
@@ -28,15 +28,15 @@ object Students: Table("Students"){
     
 
 }
-object TutoringRequests : Table("TutoringRequests") {
+object TutoringRequests : Table("\"TutoringRequests\"") {
     val id = integer("id").autoIncrement()
     val studentId = integer("StudentId") references Students.id
     val teacherId = integer("TeacherId") references Teachers.id
     val date = date("date")
-    val lunchA = bool("lunchA").default("false")
-    val lunchB = bool("lunchB").default("false")
-    val lunchC = bool("lunchC").default("false")
-    val lunchD = bool("lunchD").default("false")
+    val lunchA = bool("lunchA")
+    val lunchB = bool("lunchB")
+    val lunchC = bool("lunchC")
+    val lunchD = bool("lunchD")
     val status = varchar("status", 50).default("active")
 
     override val primaryKey = PrimaryKey(id)
