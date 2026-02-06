@@ -170,4 +170,19 @@ class ReportRepository {
 
         minDate to maxDate
     }
+    //charts
+    fun getSessionsByWeek(): Map<String, Long> = transaction{
+        TutoringRequests
+            .slice(TutoringRequests.date, TutoringRequests.id.count())
+            .selectAll()
+            .groupBy(TutoringRequests.date)
+            .map{ row->
+                val date = row[TutoringRequests.date]
+                val weekYear = "${date.year}-W${date.get(java.time.temporal.WeekFields.ISO.weekOfWeekBasedYear()).toString().padStart(2,'0')}"
+                weekYear to row[TutoringRequests.id.count()]
+            }
+            .groupBy({it.first}, {it.second})
+            .mapValues {it.value.sum()}
+            .toSortedMap()
+    }
 }

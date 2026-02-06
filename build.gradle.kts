@@ -32,6 +32,9 @@ dependencies{
     implementation("ch.qos.logback:logback-classic:1.4.14")
     //coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+
+    //graphics
+    //implementation("org.apache.poi:poi-ooxml-schemas:5.2.5")
 }
 
 application{

@@ -8,6 +8,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import org.apache.poi.xssf.usermodel.XSSFCellStyle
 import org.coderva.reports.models.StudentSessionCount
+import org.apache.poi.ss.util.CellRangeAddress
+
 
 class ExcelReportGenerator(private val repository: ReportRepository){
     private val workbook = XSSFWorkbook()
@@ -21,6 +23,7 @@ class ExcelReportGenerator(private val repository: ReportRepository){
         createTeacherSummarySheet()
         createStudentSumarySheet()
         createDailyBreakdownSheet()
+        createGradeLevelSheet(currentSchoolYear)
 
         FileOutputStream(outputPath).use { fileOut->
             workbook.write(fileOut)
@@ -110,7 +113,7 @@ class ExcelReportGenerator(private val repository: ReportRepository){
         }
         val sessionsByTeacher = repository.getSessionCountByTeacher()
         val percentiles = repository.getTeacherPercentiles()
-
+        val dataStartRow = rowNum
         sessionsByTeacher.entries
             .sortedByDescending{it.value}
             .forEach{(teacher,count)->
@@ -119,10 +122,22 @@ class ExcelReportGenerator(private val repository: ReportRepository){
                 row.createCell(1).setCellValue(count.toDouble())
                 row.createCell(2).setCellValue("${percentiles[teacher] ?: 0}%")
             }
-        
+        val dataEndRow = rowNum - 1
+
         sheet.autoSizeColumn(0)
         sheet.autoSizeColumn(1)
         sheet.autoSizeColumn(2)
+
+        //add bar chart
+        if(dataEndRow >= dataStartRow){
+            ChartHelper.addBarChart(
+                sheet = sheet,
+                title = "Sessions by Teacher",
+                categoryRange = CellRangeAddress(dataStartRow, dataEndRow, 0,0),
+                valueRange = CellRangeAddress(dataStartRow, dataEndRow, 1, 1),
+                chartPosition = ChartPosition(col1 = 4, row1 = 2, col2 = 14, row2 = 20)
+            )
+        }
         
     }
     private fun createStudentSumarySheet(){
@@ -179,7 +194,33 @@ class ExcelReportGenerator(private val repository: ReportRepository){
         sheet.autoSizeColumn(0)
         sheet.autoSizeColumn(1)
     }
+    private fun createGradeLevelSheet(currentSchoolYear: Int){
+        val sheet = workbook.createSheet("Grade Level")
+        var rowNum = 0
 
+        sheet.createRow(rowNum++).apply{
+            createCell(0).apply{
+                setCellValue("Grade Level")
+                cellStyle = headerStyle
+            }
+            createCell(1).apply{
+                setCellValue("Sessions")
+                cellStyle = headerStyle
+            }
+        }
+        val gradeOrder = listOf("9th Grade", "10th Grade","11th Grade","12th Grade")
+        val sessionsByGrade = repository.getSessionsByGradeLevel(currentSchoolYear)
+
+        gradeOrder.forEach{grade ->
+            val count = sessionsByGrade[grade] ?: 0
+            val row = sheet.createRow(rowNum++)
+            row.createCell(0).setCellValue(grade)
+            row.createCell(1).setCellValue(count.toDouble())
+        }
+
+        sheet.autoSizeColumn(0)
+        sheet.autoSizeColumn(1)
+    }
     private fun createTitleStyle(): XSSFCellStyle {
         return workbook.createCellStyle().apply{
             setFont(workbook.createFont().apply{
