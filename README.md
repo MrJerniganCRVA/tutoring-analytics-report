@@ -23,6 +23,7 @@ Two ways to run it:
    - `DATABASE_URL`: reference the Postgres service's **private** URL (`${{Postgres.DATABASE_URL}}`).
    - `DB_SSL=false`: the private network isn't TLS. Leave it unset if you use the public proxy URL.
    - `REPORT_TOKEN`: a long random string, shared with the app server.
+   - `PORT=8080`: pin the port so the internal URL below stays stable.
 3. Don't generate a public domain. The app reaches it at `http://<service-name>.railway.internal:8080`.
 4. Turn on **Serverless** (sleep when idle). It costs almost nothing between clicks; the first click
    after a quiet spell waits a few seconds for the JVM to start.
