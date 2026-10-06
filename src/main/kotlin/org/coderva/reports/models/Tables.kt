@@ -18,11 +18,8 @@ object Students: Table("\"Students\""){
     val id = integer("id")
     val firstName = varchar("first_name",100)
     val lastName = varchar("last_name", 100)
-    val r1Id = integer("R1Id").nullable()
-    val r2Id = integer("R2Id").nullable()
-    val rrId = integer("RRId").nullable()
-    val r4Id = integer("R4Id").nullable()
-    val r5Id = integer("R5Id").nullable()
+    // Class assignments (R1/R2/RR/R4/R5) moved to the app's Enrollments join
+    // table; the old R1Id..R5Id columns no longer exist on Students.
 
     override val primaryKey = PrimaryKey(id)
     
